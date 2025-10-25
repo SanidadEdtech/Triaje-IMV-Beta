@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simulador START — Triaje en Incidentes de Múltiples Víctimas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .card-bg {background: linear-gradient(135deg, rgba(14,165,233,0.06), rgba(99,102,241,0.04));backdrop-filter: blur(6px);}
+    @keyframes pulse {0% {opacity:1;} 50% {opacity:0.5;} 100% {opacity:1;}}
+    .pulse {animation: pulse 1s infinite;}
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800">
+  <header class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white p-6">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold">Simulador START</h1>
+        <p class="text-sm opacity-90">Práctica y examen cronometrado de triaje en incidentes de múltiples víctimas</p>
+        <p class="text-xs opacity-70 mt-1">Realizado por @sandiadedtech (V. López)</p>
+      </div>
+      <div class="text-right text-sm">
+        <div>Modo: <span id="modeLabel">Entrenamiento</span></div>
+        <div>Tiempo restante: <span id="timerDisplay">—</span></div>
+        <div>Puntuación: <span id="scoreHeader">0 aciertos • 0 fallos</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-6">
+    <div class="flex flex-wrap gap-4 mb-4">
+      <button id="newBtn" class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700">Nueva situación</button>
+      <button id="examBtn" class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600">Iniciar modo examen (2 min)</button>
+      <button id="endExamBtn" class="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 hidden">Finalizar examen</button>
+    </div>
+
+    <div class="card-bg p-6 rounded-2xl shadow-md">
+      <h2 class="text-xl font-semibold mb-2">Situación actual</h2>
+      <p id="scenarioText" class="mb-4">Cargando...</p>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+        <div class="p-3 rounded-lg border border-gray-100">
+          <dt class="font-semibold">Respiración</dt><dd id="respText">—</dd>
+        </div>
+        <div class="p-3 rounded-lg border border-gray-100">
+          <dt class="font-semibold">Perfusión</dt><dd id="perfText">—</dd>
+        </div>
+        <div class="p-3 rounded-lg border border-gray-100">
+          <dt class="font-semibold">Estado mental</dt><dd id="mentText">—</dd>
+        </div>
+        <div class="p-3 rounded-lg border border-gray-100">
+          <dt class="font-semibold">Sangrado</dt><dd id="bleedText">—</dd>
+        </div>
+      </dl>
+
+      <h3 class="mt-6 font-semibold">Selecciona color START</h3>
+      <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button data-color="Red" class="colorBtn flex items-center gap-2 px-3 py-3 rounded-xl border hover:scale-105 transition shadow-sm">
+          <span class="w-5 h-5 rounded-full bg-red-600"></span>Rojo
+        </button>
+        <button data-color="Yellow" class="colorBtn flex items-center gap-2 px-3 py-3 rounded-xl border hover:scale-105 transition shadow-sm">
+          <span class="w-5 h-5 rounded-full bg-yellow-400"></span>Amarillo
+        </button>
+        <button data-color="Green" class="colorBtn flex items-center gap-2 px-3 py-3 rounded-xl border hover:scale-105 transition shadow-sm">
+          <span class="w-5 h-5 rounded-full bg-green-500"></span>Verde
+        </button>
+        <button data-color="Black" class="colorBtn flex items-center gap-2 px-3 py-3 rounded-xl border hover:scale-105 transition shadow-sm">
+          <span class="w-5 h-5 rounded-full bg-gray-800"></span>Negro
+        </button>
+      </div>
+
+      <div class="mt-6 flex gap-4">
+        <button id="checkBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Comprobar respuesta</button>
+        <button id="nextBtn" class="px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 hidden">Siguiente situación</button>
+      </div>
+
+      <div id="resultArea" class="mt-4 p-3 rounded-lg bg-gray-50 border hidden">
+        <div id="resultMsg" class="font-medium"></div>
+        <div id="explain" class="text-sm opacity-80 mt-2"></div>
+      </div>
+    </div>
+
+    <div class="mt-6 grid grid-cols-3 gap-4">
+      <div class="p-4 bg-white rounded-xl shadow-sm"><div class="text-xs opacity-70">Aciertos</div><div id="correctCount" class="text-2xl font-semibold mt-2">0</div></div>
+      <div class="p-4 bg-white rounded-xl shadow-sm"><div class="text-xs opacity-70">Fallos</div><div id="wrongCount" class="text-2xl font-semibold mt-2">0</div></div>
+      <div class="p-4 bg-white rounded-xl shadow-sm"><div class="text-xs opacity-70">Total</div><div id="totalCount" class="text-2xl font-semibold mt-2">0</div></div>
+    </div>
+  </main>
+
+  <footer class="max-w-6xl mx-auto p-6 text-xs text-gray-500 text-center">
+    © Simulador START — <span id="year"></span> · Realizado por @sandiadedtech (V. López)
+  </footer>
+
+<script>
+const scenarios=[
+  {desc:'Adulto inconsciente; tras recolocar vía aérea respira 10/min, pulso radial palpable, sigue órdenes.',resp:{breathing:10,afterAirway:true},perfusion:{capRefill:1.5,radial:true},mental:'follows',bleed:'moderate'},
+  {desc:'Paciente con sangrado masivo, 24/min, sin pulso radial.',resp:{breathing:24},perfusion:{capRefill:3,radial:false},mental:'doesnot',bleed:'massive'},
+  {desc:'Ambulante, orientado, respiración 18/min.',resp:{breathing:18},perfusion:{capRefill:1,radial:true},mental:'follows',bleed:'none'},
+  {desc:'No respira tras recolocar vía aérea.',resp:{breathing:0,afterAirway:false},perfusion:{capRefill:5,radial:false},mental:'nolocal',bleed:'severe'}
+];
+let current=null;let selectedColor=null;let stats={correct:0,wrong:0,total:0};let exam=false;let timer=null;let timeLeft=0;
+
+function pickScenario(){
+  const idx=Math.floor(Math.random()*scenarios.length);
+  current=JSON.parse(JSON.stringify(scenarios[idx]));
+  renderScenario();
+}
+function renderScenario(){
+  document.getElementById('scenarioText').textContent=current.desc;
+  document.getElementById('respText').textContent=current.resp.breathing===0?'No respira':current.resp.breathing+' resp/min';
+  document.getElementById('perfText').textContent='Llenado capilar '+current.perfusion.capRefill+'s · Pulso radial: '+(current.perfusion.radial?'presente':'ausente');
+  document.getElementById('mentText').textContent=current.mental;
+  document.getElementById('bleedText').textContent=current.bleed;
+  document.getElementById('resultArea').classList.add('hidden');
+  selectedColor=null;
+  document.querySelectorAll('.colorBtn').forEach(b=>b.classList.remove('ring-4','ring-offset-2','ring-indigo-300'));
+  document.getElementById('nextBtn').classList.add('hidden');
+}
+function computeSTART(s){
+  if(s.resp.breathing===0&&!s.resp.afterAirway)return'Black';
+  if(['massive','severe'].includes(s.bleed))return'Red';
+  if(s.resp.breathing>30)return'Red';
+  if(s.perfusion.capRefill>2||!s.perfusion.radial)return'Red';
+  if(['doesnot','nolocal'].includes(s.mental))return'Red';
+  if(s.bleed==='moderate')return'Yellow';
+  return'Green';
+}
+function explainDecision(){
+  if(current.resp.breathing===0&&!current.resp.afterAirway)return'No respira tras recolocar → NEGRO';
+  if(['massive','severe'].includes(current.bleed))return'Sangrado masivo → ROJO';
+  if(current.resp.breathing>30)return'Respira >30/min → ROJO';
+  if(current.perfusion.capRefill>2||!current.perfusion.radial)return'Perfusión comprometida → ROJO';
+  if(['doesnot','nolocal'].includes(current.mental))return'No sigue órdenes → ROJO';
+  if(current.bleed==='moderate')return'Sangrado moderado → AMARILLO';
+  return'Estable → VERDE';
+}
+
+document.getElementById('newBtn').addEventListener('click',()=>pickScenario());
+document.getElementById('checkBtn').addEventListener('click',()=>{
+  if(!selectedColor){alert('Selecciona un color');return;}
+  const correct=computeSTART(current);
+  const res=document.getElementById('resultArea');
+  const msg=document.getElementById('resultMsg');
+  const exp=document.getElementById('explain');
+  if(selectedColor===correct){
+    msg.textContent='Correcto';
+    msg.className='font-medium text-green-700';
+    stats.correct++;
+  }else{
+    msg.textContent=`Incorrecto — correcto: ${correct}`;
+    msg.className='font-medium text-red-700';
+    stats.wrong++;
+  }
+  stats.total++;
+  exp.textContent=explainDecision();
+  res.classList.remove('hidden');
+  document.getElementById('nextBtn').classList.remove('hidden');
+  updateScoreDisplay();
+});
+
+document.querySelectorAll('.colorBtn').forEach(b=>
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.colorBtn').forEach(x=>x.classList.remove('ring-4','ring-offset-2','ring-indigo-300'));
+    b.classList.add('ring-4','ring-offset-2','ring-indigo-300');
+    selectedColor=b.getAttribute('data-color');
+  })
+);
+
+document.getElementById('nextBtn').addEventListener('click',()=>pickScenario());
+
+function updateScoreDisplay(){
+  document.getElementById('correctCount').textContent=stats.correct;
+  document.getElementById('wrongCount').textContent=stats.wrong;
+  document.getElementById('totalCount').textContent=stats.total;
+  document.getElementById('scoreHeader').textContent=`${stats.correct} aciertos • ${stats.wrong} fallos`;
+}
+
+function startExam(){
+  exam=true;
+  stats={correct:0,wrong:0,total:0};
+  updateScoreDisplay();
+  timeLeft=120;
+  document.getElementById('modeLabel').textContent='Examen';
+  document.getElementById('examBtn').classList.add('hidden');
+  document.getElementById('endExamBtn').classList.remove('hidden');
+  pickScenario();
+  timer=setInterval(()=>{
+    timeLeft--;
+    document.getElementById('timerDisplay').textContent=timeLeft+'s';
+    if(timeLeft<=0)endExam();
+  },1000);
+}
+
+function endExam(){
+  exam=false;
+  clearInterval(timer);
+  document.getElementById('timerDisplay').textContent='—';
+  document.getElementById('modeLabel').textContent='Entrenamiento';
+  document.getElementById('examBtn').classList.remove('hidden');
+  document.getElementById('endExamBtn').classList.add('hidden');
+  alert(`Examen finalizado. Aciertos: ${stats.correct}, Fallos: ${stats.wrong}`);
+}
+
+document.getElementById('examBtn').addEventListener('click',startExam);
+document.getElementById('endExamBtn').addEventListener('click',endExam);
+
+pickScenario();
+document.getElementById('year').textContent=new Date().getFullYear();
+</script>
+</body>
+</html>
